@@ -159,14 +159,20 @@ app.get('/api/coinmarketcap/*', async (req, res) => {
 
         // Récupérer le chemin après /api/coinmarketcap/
         // Express capture le chemin avec req.params[0] pour les routes avec *
-        const fullPath = req.params[0] || req.url.replace('/api/coinmarketcap/', '').split('?')[0] || '';
+        let fullPath = req.params[0] || req.url.replace('/api/coinmarketcap/', '').split('?')[0] || '';
+        
+        // ✅ CORRECTION : Retirer le préfixe "v1/" du chemin s'il est présent
+        // Car la base URL contient déjà /v1/
+        if (fullPath.startsWith('v1/')) {
+            fullPath = fullPath.replace('v1/', '');
+        }
+        
         const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
         const cacheKey = `${fullPath}${queryString ? '?' + queryString : ''}`;
         
         // Debug
         console.log(`🔍 Debug route - req.url: ${req.url}`);
-        console.log(`🔍 Debug route - req.params:`, req.params);
-        console.log(`🔍 Debug route - fullPath extrait: ${fullPath}`);
+        console.log(`🔍 Debug route - fullPath après nettoyage: ${fullPath}`);
         
         // Vérifier le cache avant d'appeler l'API
         const cachedData = getCoinMarketCapCache(cacheKey);
