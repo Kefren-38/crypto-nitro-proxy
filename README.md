@@ -23,7 +23,51 @@ npm start
 
 Le serveur démarre sur `http://localhost:3000` (ou le port défini par `PORT`).
 
-## 🌐 Déploiement sur Render
+## 🌐 Déploiement sur Railway (Recommandé - Contourne le blocage Binance)
+
+**⚠️ IMPORTANT :** Render bloque Binance (erreur 451). Utilisez Railway à la place.
+
+### 1. Créer un compte Railway
+
+1. Aller sur [Railway.app](https://railway.app)
+2. S'inscrire/Se connecter avec GitHub
+
+### 2. Déployer depuis GitHub
+
+1. Cliquer sur "New Project"
+2. Sélectionner "Deploy from GitHub repo"
+3. Choisir le repository `crypto-nitro-proxy`
+4. Railway détecte automatiquement Node.js et déploie
+
+### 3. Configuration automatique
+
+Railway détecte automatiquement :
+- ✅ `package.json` avec script `start`
+- ✅ `node` dans `engines`
+- ✅ Port via `process.env.PORT`
+
+### 4. Obtenir l'URL du proxy
+
+1. Une fois déployé, Railway génère une URL : `https://votre-proxy.railway.app`
+2. Copier cette URL pour l'utiliser dans `crypto-nitro`
+
+### 5. Variables d'environnement (optionnelles)
+
+Dans Railway → Variables :
+- `PORT` : Laisser Railway le gérer automatiquement
+
+### Avantages Railway vs Render
+
+- ✅ **Pas de blocage Binance** (erreur 451)
+- ✅ Déploiement automatique depuis GitHub
+- ✅ Plan gratuit généreux
+- ✅ Pas de configuration complexe
+
+---
+
+## 🌐 Déploiement sur Render (⚠️ NON RECOMMANDÉ - Bloque Binance)
+
+**⚠️ ATTENTION :** Render retourne une erreur 451 pour Binance. Ne pas utiliser.
 
 ### 1. Créer un nouveau service Web sur Render
 
@@ -84,19 +128,19 @@ Remplacez les URLs directes par les URLs du proxy :
 const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
 ```
 
-**Après :**
+**Après (Railway) :**
 ```javascript
-const PROXY_URL = 'https://votre-proxy-render.onrender.com';
+const PROXY_URL = 'https://votre-proxy.railway.app';
 const response = await fetch(`${PROXY_URL}/api/binance/ticker/price?symbol=BTCUSDT`);
 const data = await response.json();
-const binanceData = data.data; // Les données sont dans data.data
+const binanceData = data.success ? data.data : data; // Les données sont dans data.data si success:true
 ```
 
 ## ⚠️ Limitations
 
 - **Rate Limiting** : CoinGecko limite à 25-30 appels/minute (plan gratuit)
 - **Timeout** : Les requêtes peuvent timeout si les APIs externes sont lentes
-- **Coûts** : Render propose un plan gratuit avec limitations
+- **Coûts** : Railway propose un plan gratuit avec limitations (plus généreux que Render)
 
 ## 📝 Notes
 
