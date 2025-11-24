@@ -157,11 +157,16 @@ app.get('/api/coinmarketcap/*', async (req, res) => {
             });
         }
 
-        // Récupérer le chemin après /api/coinmarketcap/ pour le cache
-        // Utiliser req.params.path pour capturer le chemin avec :path(*)
-        const fullPath = req.params.path || '';
+        // Récupérer le chemin après /api/coinmarketcap/
+        // Express capture le chemin avec req.params[0] pour les routes avec *
+        const fullPath = req.params[0] || req.url.replace('/api/coinmarketcap/', '').split('?')[0] || '';
         const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
         const cacheKey = `${fullPath}${queryString ? '?' + queryString : ''}`;
+        
+        // Debug
+        console.log(`🔍 Debug route - req.url: ${req.url}`);
+        console.log(`🔍 Debug route - req.params:`, req.params);
+        console.log(`🔍 Debug route - fullPath extrait: ${fullPath}`);
         
         // Vérifier le cache avant d'appeler l'API
         const cachedData = getCoinMarketCapCache(cacheKey);
