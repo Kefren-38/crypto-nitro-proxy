@@ -4,26 +4,28 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ===== CACHE COINMARKETCAP (10 minutes) =====
-const coinmarketcapCache = {
-    data: null,
-    timestamp: null,
-    CACHE_DURATION: 10 * 60 * 1000 // 10 minutes en millisecondes
-};
+// ===== CACHE COINMARKETCAP (10 minutes) - Cache par endpoint =====
+const coinmarketcapCache = new Map(); // Format: {endpoint: {data, timestamp}}
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes en millisecondes
 
-function getCoinMarketCapCache() {
-    if (coinmarketcapCache.data && coinmarketcapCache.timestamp) {
-        const age = Date.now() - coinmarketcapCache.timestamp;
-        if (age < coinmarketcapCache.CACHE_DURATION) {
-            return coinmarketcapCache.data;
+function getCoinMarketCapCache(endpoint) {
+    const cached = coinmarketcapCache.get(endpoint);
+    if (cached && cached.timestamp) {
+        const age = Date.now() - cached.timestamp;
+        if (age < CACHE_DURATION) {
+            return cached.data;
         }
+        // Cache expiré, le supprimer
+        coinmarketcapCache.delete(endpoint);
     }
     return null;
 }
 
-function setCoinMarketCapCache(data) {
-    coinmarketcapCache.data = data;
-    coinmarketcapCache.timestamp = Date.now();
+function setCoinMarketCapCache(endpoint, data) {
+    coinmarketcapCache.set(endpoint, {
+        data: data,
+        timestamp: Date.now()
+    });
 }
 
 // Middleware CORS
@@ -155,29 +157,35 @@ app.get('/api/coinmarketcap/*', async (req, res) => {
             });
         }
 
+        // Récupérer le chemin après /api/coinmarketcap/ pour le cache
+        // Utiliser req.params.path pour capturer le chemin avec :path(*)
+        const fullPath = req.params.path || '';
+        const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
+        const cacheKey = `${fullPath}${queryString ? '?' + queryString : ''}`;
+        
         // Vérifier le cache avant d'appeler l'API
-        const cachedData = getCoinMarketCapCache();
+        const cachedData = getCoinMarketCapCache(cacheKey);
         if (cachedData) {
-            const age = Math.round((Date.now() - coinmarketcapCache.timestamp) / 1000);
-            console.log(`📦 Cache CoinMarketCap utilisé (âge: ${age}s)`);
+            const cachedEntry = coinmarketcapCache.get(cacheKey);
+            const age = Math.round((Date.now() - cachedEntry.timestamp) / 1000);
+            console.log(`📦 Cache CoinMarketCap utilisé (âge: ${age}s) pour endpoint: ${cacheKey}`);
             return res.json({
                 success: true,
                 source: 'coinmarketcap',
                 cached: true,
                 cacheAge: age,
                 data: cachedData,
-                timestamp: new Date(coinmarketcapCache.timestamp).toISOString()
+                timestamp: new Date(cachedEntry.timestamp).toISOString()
             });
         }
 
-        // Récupérer le chemin après /api/coinmarketcap/
-        const cmcPath = req.params[0] || '';
-        const queryString = req.url.split('?')[1] || '';
+        // Construire l'URL CoinMarketCap (fullPath et queryString déjà récupérés pour le cache)
+        const baseUrl = 'https://pro-api.coinmarketcap.com/v1/';
+        const cmcUrl = `${baseUrl}${fullPath}${queryString ? '?' + queryString : ''}`;
         
-        // Construire l'URL CoinMarketCap
-        const cmcUrl = `https://pro-api.coinmarketcap.com/v1/${cmcPath}${queryString ? '?' + queryString : ''}`;
-        
-        console.log(`📡 Proxy CoinMarketCap: ${cmcUrl}`);
+        console.log(`📡 Proxy CoinMarketCap - Chemin complet: ${fullPath}`);
+        console.log(`📡 Proxy CoinMarketCap - Query: ${queryString}`);
+        console.log(`📡 Proxy CoinMarketCap - URL finale: ${cmcUrl}`);
         
         const response = await fetch(cmcUrl, {
             method: 'GET',
@@ -202,9 +210,9 @@ app.get('/api/coinmarketcap/*', async (req, res) => {
         if (response.ok) {
             const data = await response.json();
             
-            // Mettre en cache les données
-            setCoinMarketCapCache(data);
-            console.log(`✅ Données CoinMarketCap mises en cache`);
+            // Mettre en cache les données avec la clé endpoint
+            setCoinMarketCapCache(cacheKey, data);
+            console.log(`✅ Données CoinMarketCap mises en cache pour endpoint: ${cacheKey}`);
             
             res.json({
                 success: true,
