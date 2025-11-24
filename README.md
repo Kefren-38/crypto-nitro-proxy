@@ -1,12 +1,14 @@
 # Crypto Nitro Proxy
 
-Proxy CORS pour contourner les erreurs CORS lors des appels à Binance et CoinGecko APIs depuis le navigateur.
+Proxy CORS pour contourner les erreurs CORS lors des appels à Binance, CoinGecko et CoinMarketCap APIs depuis le navigateur.
 
 ## 🚀 Fonctionnalités
 
 - **Proxy Binance** : Contourne les erreurs CORS pour l'API Binance
 - **Proxy CoinGecko** : Contourne les erreurs CORS pour l'API CoinGecko
+- **Proxy CoinMarketCap** : Proxy avec cache 10 minutes pour l'API CoinMarketCap (économise les appels API)
 - **Gestion du rate limiting** : Détecte et gère les erreurs 429 (rate limit)
+- **Cache CoinMarketCap** : Cache automatique de 10 minutes pour réduire les appels API
 - **Headers CORS** : Configuration complète des headers CORS
 
 ## 📦 Installation
@@ -51,10 +53,11 @@ Railway détecte automatiquement :
 1. Une fois déployé, Railway génère une URL : `https://votre-proxy.railway.app`
 2. Copier cette URL pour l'utiliser dans `crypto-nitro`
 
-### 5. Variables d'environnement (optionnelles)
+### 5. Variables d'environnement
 
 Dans Railway → Variables :
 - `PORT` : Laisser Railway le gérer automatiquement
+- `COINMARKETCAP_API_KEY` : **Obligatoire** pour CoinMarketCap (obtenir sur https://coinmarketcap.com/api/)
 
 ### Avantages Railway vs Render
 
@@ -81,9 +84,10 @@ Dans Railway → Variables :
    - **Start Command** : `npm start`
    - **Port** : Laisser vide (Render détecte automatiquement le PORT)
 
-### 2. Variables d'environnement (optionnelles)
+### 2. Variables d'environnement
 
 - `PORT` : Port d'écoute (par défaut: 3000, Render définit automatiquement)
+- `COINMARKETCAP_API_KEY` : **Obligatoire** pour CoinMarketCap (obtenir sur https://coinmarketcap.com/api/)
 
 ### 3. Déployer
 
@@ -119,6 +123,24 @@ GET /api/coingecko/{endpoint}?{query}
 - `/api/coingecko/simple/price?ids=bitcoin&vs_currencies=usd`
 - `/api/coingecko/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1`
 
+### Proxy CoinMarketCap (avec cache 10 minutes)
+
+```
+GET /api/coinmarketcap/{endpoint}?{query}
+```
+
+**⚠️ Requiert** : Variable d'environnement `COINMARKETCAP_API_KEY` configurée
+
+**Exemples :**
+- `/api/coinmarketcap/cryptocurrency/listings/latest?limit=100&sort=percent_change_24h`
+- `/api/coinmarketcap/cryptocurrency/info?id=1`
+
+**Cache :**
+- Les résultats sont mis en cache pendant 10 minutes
+- Tous les clients partagent le même cache
+- Réduit drastiquement les appels API CoinMarketCap
+- Réponse inclut `cached: true/false` et `cacheAge` (en secondes)
+
 ## 🔗 Intégration dans crypto-nitro
 
 Remplacez les URLs directes par les URLs du proxy :
@@ -138,7 +160,10 @@ const binanceData = data.success ? data.data : data; // Les données sont dans d
 
 ## ⚠️ Limitations
 
-- **Rate Limiting** : CoinGecko limite à 25-30 appels/minute (plan gratuit)
+- **Rate Limiting** : 
+  - CoinGecko limite à 25-30 appels/minute (plan gratuit)
+  - CoinMarketCap limite à 10 000 appels/mois (plan gratuit Basic)
+  - Le cache CoinMarketCap réduit drastiquement les appels (1 appel toutes les 10 minutes max)
 - **Timeout** : Les requêtes peuvent timeout si les APIs externes sont lentes
 - **Coûts** : Railway propose un plan gratuit avec limitations (plus généreux que Render)
 
